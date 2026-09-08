@@ -75,7 +75,7 @@ export const noModuleMockingRule = defineRule({
     },
     messages: {
       moduleMock:
-        "Replace module mocking with dependency injection through a real interface, service layer, or faithful test implementation.",
+        "Replace module mocking with dependency injection through a real seam. If this test covers a composition root, module imports are the dependency graph under test; document that boundary and disable this rule for the file with `/* oxlint-disable anti-slop/no-module-mocking */`.",
     },
   },
   createOnce(context) {

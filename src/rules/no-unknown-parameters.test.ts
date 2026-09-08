@@ -9,6 +9,8 @@ tester.run("anti-slop/no-unknown-parameters", noUnknownParametersRule, {
 	valid: [
 		"function enrich(cause: unknown): void {}",
 		"function enrich(cause: Error | unknown): void {}",
+		"function normalize(error: unknown): Error { return new Error(String(error)); }",
+		"function reject(reason: Error | unknown): void {}",
 		"function isString(value: unknown): value is string { return true; }",
 		"const isString = (value: unknown): value is string => true;",
 		"function assertString(value: unknown): asserts value is string {}",
