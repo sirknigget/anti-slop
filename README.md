@@ -98,10 +98,10 @@ export default defineConfig({
 
 ### Generic rules
 
-- `cognitive-complexity` — exposes the official SonarJS cognitive-complexity rule but excludes recognized Jest suite callbacks.
-- `cyclomatic-complexity` — exposes the official SonarJS cyclomatic-complexity rule but excludes recognized Jest suite callbacks.
+- `cognitive-complexity` — exposes the official SonarJS cognitive-complexity rule. Suite callbacks and their nested functions are measured independently.
+- `cyclomatic-complexity` — exposes the official SonarJS cyclomatic-complexity rule. Suite callbacks and their nested functions are measured independently.
 - `max-lines` — exposes the official SonarJS file-length rule without callback filtering.
-- `max-lines-per-function` — exposes the official SonarJS function-length rule but excludes recognized Jest suite callbacks.
+- `max-lines-per-function` — exposes the official SonarJS function-length rule. Suite callbacks count only their own lines; nested functions are checked independently.
 - `no-chained-type-assertions` — rejects nested `as` and angle-bracket assertions that fabricate evidence; chains made only of `as const` remain valid.
 - `no-conditional-empty-object-spread` — reports object spreads that use a conditional `{}` branch to omit fields. It intentionally has no autofix because omission is not equivalent to assigning `undefined`.
 - `no-known-value-widening` — rejects known expressions flowing into explicit `unknown`, `object`, anonymous-object, or open-dictionary targets, including known arguments passed to local `unknown` type predicates. Empty dictionary accumulators and finite-key `Record` targets remain valid.
@@ -118,7 +118,7 @@ export default defineConfig({
 - `no-widen-then-assert` — rejects immutable local flows that widen known evidence to `unknown`, `any`, `object`, or a broad record and later assert it back to a narrower type.
 - `require-safety-comment-for-type-assertion` — requires each non-const assertion to have a nearby, non-empty invariant justification. Marker prefixes are configurable and default to `SAFETY`.
 
-The callback-aware rules exclude `describe`, `describe.only`, `describe.skip`, `describe.each`, `describe.only.each`, `describe.skip.each`, `fdescribe`, and `xdescribe` suite callbacks. They continue to check tests, hooks, helpers, ordinary callbacks, and ordinary functions. Rule options are the unchanged SonarJS options.
+The suite-aware rules recognize `describe`, `describe.only`, `describe.skip`, `describe.each`, `describe.only.each`, `describe.skip.each`, `fdescribe`, and `xdescribe`. Direct suite code is checked, while nested tests, hooks, helpers, callbacks, and functions are excluded from the suite's metrics and checked independently. Rule options are the unchanged SonarJS options.
 
 ### Effect rules
 

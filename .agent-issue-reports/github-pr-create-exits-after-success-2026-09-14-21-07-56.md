@@ -12,6 +12,8 @@
 - Printed URL: `https://github.com/sirknigget/anti-slop/pull/2`.
 - Final error: no pull requests found for `sirknigget:feat/callback-aware-sonarjs`.
 - A separate `github-pr reviews` call confirmed that PR #2 exists and is open.
+- The same failure recurred for `fix/describe-own-quality-metrics`: the command printed `https://github.com/sirknigget/anti-slop/pull/3`, then reported no pull request for `sirknigget:fix/describe-own-quality-metrics`.
+- A full-URL `github-pr update` then rejected the same local head checkout as not matching `sirknigget/anti-slop:fix/describe-own-quality-metrics`.
 
 ## Impact
 The create result appeared to fail after a successful mutation. A second network request was necessary to determine the real state.

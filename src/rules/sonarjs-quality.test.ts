@@ -1,6 +1,6 @@
 /*
  * Runs the published Anti-Slop plugin through Oxlint.
- * Temporary fixtures protect the suite-callback and leaf-function contract.
+ * Temporary fixtures protect suite-owned metrics and nested-function checks.
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -41,6 +41,33 @@ function complexBody(indent: string): string {
   return lines.join("\n");
 }
 
+// Creates direct suite code that exceeds both complexity thresholds in fewer than 50 lines.
+function branchingBody(indent: string): string {
+  const lines = [
+    `${indent}const values = Array.from({ length: 13 }, () => true);`,
+    `${indent}let score = 0;`,
+  ];
+  for (let index = 0; index < 13; index += 1) {
+    lines.push(`${indent}if (values[${index}]) score += ${index};`);
+  }
+  lines.push(`${indent}void score;`);
+  return lines.join("\n");
+}
+
+// Creates enough short leaf tests to make the suite's full source range exceed 50 lines.
+function nestedTests(indent: string): string {
+  return Array.from(
+    { length: 17 },
+    (_, index) =>
+      `${indent}it('case ${index}', () => {\n${indent}  expect(${index}).toBe(${index});\n${indent}});`,
+  ).join("\n");
+}
+
+// Creates direct suite code that exceeds only the function-length threshold.
+function longBody(indent: string): string {
+  return Array.from({ length: 51 }, (_, index) => `${indent}void ${index};`).join("\n");
+}
+
 // Writes one fixture into the isolated test directory.
 function writeFixture(name: string, source: string): string {
   const path = join(temporaryRoot, name);
@@ -64,14 +91,21 @@ function reportedRuleIds(output: string): string[] {
   return report.diagnostics.map(({ code }) => code.replace(/^([^()]+)\((.+)\)$/u, "$1/$2"));
 }
 
-// Requires one fixture to fail with every function-quality rule under the Anti-Slop namespace.
-function expectFunctionViolations(name: string, source: string): void {
+// Requires one fixture to fail with the specified quality rules and no others.
+function expectRuleViolations(
+  name: string,
+  source: string,
+  expectedRuleIds: readonly string[],
+): void {
   const result = lint(writeFixture(name, source));
   assert.equal(result.status, 1, result.output);
-  const reported = reportedRuleIds(result.output);
-  for (const ruleId of qualityRuleIds) {
-    assert.ok(reported.includes(ruleId), `${ruleId} was not reported: ${result.output}`);
-  }
+  const reported = reportedRuleIds(result.output).sort();
+  assert.deepEqual(reported, [...expectedRuleIds].sort(), result.output);
+}
+
+// Requires one fixture to fail with every function-quality rule.
+function expectFunctionViolations(name: string, source: string): void {
+  expectRuleViolations(name, source, qualityRuleIds);
 }
 
 // Defines the real package configuration used for all black-box fixtures.
@@ -107,17 +141,28 @@ try {
     ["xdescribe", "xdescribe('suite', () => {"],
   ] as const;
   const suiteFixtures = suiteForms.map(([name, call]) =>
-    writeFixture(`${name}.ts`, `${call}\n${complexBody("  ")}\n});`),
+    writeFixture(`${name}.ts`, `${call}\n${nestedTests("  ")}\n});`),
   );
   const suitesResult = lint(...suiteFixtures);
   assert.equal(suitesResult.status, 0, suitesResult.output);
 
   const nestedSuite = writeFixture(
     "nested-suite.ts",
-    `describe('outer', () => {\n  describe('inner', () => {\n${complexBody("    ")}\n  });\n});`,
+    `describe('outer', () => {\n  describe('inner', () => {\n${nestedTests("    ")}\n  });\n});`,
   );
   const nestedResult = lint(nestedSuite);
   assert.equal(nestedResult.status, 0, nestedResult.output);
+
+  expectRuleViolations(
+    "describe-direct-complexity.ts",
+    `describe('suite', () => {\n${branchingBody("  ")}\n});`,
+    ["anti-slop/cognitive-complexity", "anti-slop/cyclomatic-complexity"],
+  );
+  expectRuleViolations(
+    "describe-direct-length.ts",
+    `describe('suite', () => {\n${longBody("  ")}\n});`,
+    ["anti-slop/max-lines-per-function"],
+  );
 
   const compliant = writeFixture(
     "compliant.ts",
@@ -132,19 +177,19 @@ try {
   );
   expectFunctionViolations(
     "test-callback.ts",
-    `test('checks a large leaf', () => {\n${complexBody("  ")}\n});`,
+    `describe('suite', () => {\n  test('checks a large leaf', () => {\n${complexBody("    ")}\n  });\n});`,
   );
   expectFunctionViolations(
     "hook-callback.ts",
-    `beforeEach(() => {\n${complexBody("  ")}\n});`,
+    `describe('suite', () => {\n  beforeEach(() => {\n${complexBody("    ")}\n  });\n});`,
   );
   expectFunctionViolations(
     "helper-callback.ts",
-    `[1].map(() => {\n${complexBody("  ")}\n});`,
+    `describe('suite', () => {\n  [1].map(() => {\n${complexBody("    ")}\n  });\n});`,
   );
   expectFunctionViolations(
     "ordinary-function.ts",
-    `function calculate(): void {\n${complexBody("  ")}\n}`,
+    `describe('suite', () => {\n  function calculate(): void {\n${complexBody("    ")}\n  }\n  void calculate;\n});`,
   );
 
   const largeFile = writeFixture(
