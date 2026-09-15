@@ -1,11 +1,16 @@
 /*
  * Exposes official SonarJS quality rules through Anti-Slop.
- * Suite callbacks are registration containers, not executable leaf tests.
+ * Suite callbacks measure their own code without absorbing nested functions.
  */
-import type { CreateRule, ESTree, Visitor } from "@oxlint/plugins";
+import type { Context, CreateRule, ESTree, Visitor } from "@oxlint/plugins";
 import { rules } from "eslint-plugin-sonarjs";
 
 const sonarRules = rules as unknown as Record<string, CreateRule>;
+
+type FunctionNode = ESTree.Node & {
+  type: "FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression";
+};
+const functionSelector = "FunctionDeclaration, FunctionExpression, ArrowFunctionExpression";
 
 // Returns one required public SonarJS rule or stops plugin loading with a clear error.
 function getSonarRule(name: string): CreateRule {
@@ -17,7 +22,7 @@ function getSonarRule(name: string): CreateRule {
 }
 
 // Identifies the function nodes that can own executable statements.
-function isFunction(node: ESTree.Node): boolean {
+function isFunction(node: ESTree.Node): node is FunctionNode {
   return (
     node.type === "FunctionDeclaration" ||
     node.type === "FunctionExpression" ||
@@ -111,7 +116,78 @@ function ignoreSuiteCallbacks(rule: CreateRule): CreateRule {
   };
 }
 
-export const cognitiveComplexityRule = ignoreSuiteCallbacks(getSonarRule("cognitive-complexity"));
-export const cyclomaticComplexityRule = ignoreSuiteCallbacks(getSonarRule("cyclomatic-complexity"));
-export const maxLinesPerFunctionRule = ignoreSuiteCallbacks(getSonarRule("max-lines-per-function"));
+// Counts source lines owned by the suite callback rather than its nested functions.
+function ownLineCount(suite: FunctionNode, functions: FunctionNode[], context: Context): number {
+  const nestedRanges = functions
+    .filter(
+      (node) => node !== suite && node.start >= suite.start && node.end <= suite.end,
+    )
+    .map(({ start, end }) => ({ start, end }));
+  const lineNumbers = new Set<number>();
+  for (const token of context.sourceCode.getTokens(suite)) {
+    const isNested = nestedRanges.some(
+      ({ start, end }) => token.start >= start && token.end <= end,
+    );
+    if (!isNested) {
+      for (let line = token.loc.start.line; line <= token.loc.end.line; line += 1) {
+        lineNumbers.add(line);
+      }
+    }
+  }
+  return lineNumbers.size;
+}
+
+// Reports suite-owned lines while the official rule checks every nested function.
+function suiteAwareMaxLinesPerFunction(rule: CreateRule): CreateRule {
+  return {
+    ...rule,
+    create(context) {
+      const listeners = ignoreSuiteCallbacks(rule).create(context);
+      const functions: FunctionNode[] = [];
+      const suites: FunctionNode[] = [];
+      const visitFunction = listeners[functionSelector] as
+        | ((node: ESTree.Node) => void)
+        | undefined;
+      const exitProgram = listeners["Program:exit"] as
+        | ((node: ESTree.Node) => void)
+        | undefined;
+      const threshold =
+        (context.options[0] as { maximum?: number } | undefined)?.maximum ?? 200;
+      return {
+        ...listeners,
+        [functionSelector](node: ESTree.Node) {
+          visitFunction?.(node);
+          if (isFunction(node)) {
+            functions.push(node);
+            if (isSuiteCallback(node)) {
+              suites.push(node);
+            }
+          }
+        },
+        "Program:exit"(node: ESTree.Node) {
+          exitProgram?.(node);
+          for (const suite of suites) {
+            const lineCount = ownLineCount(suite, functions, context);
+            if (lineCount > threshold) {
+              context.report({
+                messageId: "functionMaxLine",
+                data: {
+                  lineCount: lineCount.toString(),
+                  threshold: threshold.toString(),
+                },
+                loc: suite.loc,
+              });
+            }
+          }
+        },
+      };
+    },
+  };
+}
+
+export const cognitiveComplexityRule = getSonarRule("cognitive-complexity");
+export const cyclomaticComplexityRule = getSonarRule("cyclomatic-complexity");
+export const maxLinesPerFunctionRule = suiteAwareMaxLinesPerFunction(
+  getSonarRule("max-lines-per-function"),
+);
 export const maxLinesRule = getSonarRule("max-lines");
