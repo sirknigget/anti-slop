@@ -15,11 +15,21 @@ import { noUnknownTypeAliasesRule } from "./rules/no-unknown-type-aliases.ts";
 import { noUnsafeDictionaryTypeRule } from "./rules/no-unsafe-dictionary-type.ts";
 import { noWidenThenAssertRule } from "./rules/no-widen-then-assert.ts";
 import { requireSafetyCommentForTypeAssertionRule } from "./rules/require-safety-comment-for-type-assertion.ts";
+import {
+	cognitiveComplexityRule,
+	cyclomaticComplexityRule,
+	maxLinesPerFunctionRule,
+	maxLinesRule,
+} from "./rules/sonarjs-quality.ts";
 
 /** Generic Oxlint rules that reject low-evidence and low-signal implementation patterns. */
 const antiSlopPlugin = eslintCompatPlugin({
 	meta: { name: "anti-slop" },
 	rules: {
+		"cognitive-complexity": cognitiveComplexityRule,
+		"cyclomatic-complexity": cyclomaticComplexityRule,
+		"max-lines": maxLinesRule,
+		"max-lines-per-function": maxLinesPerFunctionRule,
 		"no-chained-type-assertions": noChainedTypeAssertionsRule,
 		"no-conditional-empty-object-spread": noConditionalEmptyObjectSpreadRule,
 		"no-known-value-widening": noKnownValueWideningRule,

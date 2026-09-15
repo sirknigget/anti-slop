@@ -24,7 +24,7 @@ npx skills add dmmulroy/anti-slop --list
 
 ## Manual local installation
 
-Copy `src/` into the target repository, for example at `tools/oxlint/anti-slop/`. If the repository already uses `oxlint`, install `@oxlint/plugins` at exactly the resolved Oxlint version. Otherwise, install the same current version of both packages. Keep both versions exact so upgrades move them together.
+Copy `src/` into the target repository, for example at `tools/oxlint/anti-slop/`. If the repository already uses `oxlint`, install `@oxlint/plugins` at exactly the resolved Oxlint version and install `eslint-plugin-sonarjs@4.2.0`. Otherwise, install the same current Oxlint version for both `oxlint` and `@oxlint/plugins`, plus SonarJS 4.2.0. Keep these versions exact so upgrades move them together.
 
 Register the copied entry point in `oxlint.config.ts`:
 
@@ -50,6 +50,10 @@ export default defineConfig({
     { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
   ],
   rules: {
+    "anti-slop/cognitive-complexity": ["error", 12],
+    "anti-slop/cyclomatic-complexity": ["error", { threshold: 8 }],
+    "anti-slop/max-lines": ["error", { maximum: 500 }],
+    "anti-slop/max-lines-per-function": ["error", { maximum: 50 }],
     "anti-slop/no-chained-type-assertions": "error",
     "anti-slop/no-conditional-empty-object-spread": "error",
     "anti-slop/no-known-value-widening": "error",
@@ -94,6 +98,10 @@ export default defineConfig({
 
 ### Generic rules
 
+- `cognitive-complexity` — exposes the official SonarJS cognitive-complexity rule but excludes recognized Jest suite callbacks.
+- `cyclomatic-complexity` — exposes the official SonarJS cyclomatic-complexity rule but excludes recognized Jest suite callbacks.
+- `max-lines` — exposes the official SonarJS file-length rule without callback filtering.
+- `max-lines-per-function` — exposes the official SonarJS function-length rule but excludes recognized Jest suite callbacks.
 - `no-chained-type-assertions` — rejects nested `as` and angle-bracket assertions that fabricate evidence; chains made only of `as const` remain valid.
 - `no-conditional-empty-object-spread` — reports object spreads that use a conditional `{}` branch to omit fields. It intentionally has no autofix because omission is not equivalent to assigning `undefined`.
 - `no-known-value-widening` — rejects known expressions flowing into explicit `unknown`, `object`, anonymous-object, or open-dictionary targets, including known arguments passed to local `unknown` type predicates. Empty dictionary accumulators and finite-key `Record` targets remain valid.
@@ -109,6 +117,8 @@ export default defineConfig({
 - `no-unsafe-dictionary-type` — rejects dictionary value contracts based on `unknown`, `any`, `object`, `{}`, and semantic equivalents. Generic constraints such as `T extends Record<string, unknown>` are allowed.
 - `no-widen-then-assert` — rejects immutable local flows that widen known evidence to `unknown`, `any`, `object`, or a broad record and later assert it back to a narrower type.
 - `require-safety-comment-for-type-assertion` — requires each non-const assertion to have a nearby, non-empty invariant justification. Marker prefixes are configurable and default to `SAFETY`.
+
+The callback-aware rules exclude `describe`, `describe.only`, `describe.skip`, `describe.each`, `describe.only.each`, `describe.skip.each`, `fdescribe`, and `xdescribe` suite callbacks. They continue to check tests, hooks, helpers, ordinary callbacks, and ordinary functions. Rule options are the unchanged SonarJS options.
 
 ### Effect rules
 
