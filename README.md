@@ -1,53 +1,25 @@
 # anti-slop
 
-[![skills.sh](https://skills.sh/b/dmmulroy/anti-slop)](https://skills.sh/dmmulroy/anti-slop)
-
 Opinionated Oxlint rules that reject low-evidence and low-signal TypeScript and JavaScript patterns.
 
 Anti-slop is first and foremost the ruleset I use with my work, projects, and team. It reflects my preferences and taste rather than attempting to be a universal coding standard.
 
-**This project is meant to be vendored**, not treated as a fixed npm dependency. There is no official npm package. Copy the rules into your repository, read them, and change them to match your team's standards. The bundled agent skill handles the initial copy and configuration; after that, the vendored files are yours to maintain and make your own. Community-maintained forks and packages are welcome, but their compatibility and release lifecycle belong to their maintainers.
+## Installation
 
-## Install with an agent skill
-
-```bash
-npx skills add dmmulroy/anti-slop --skill install-anti-slop
-```
-
-Then ask your coding agent to install or configure anti-slop in the current repository. The skill copies the plugin, installs compatible Oxlint dependencies—matching an existing Oxlint version when present—merges the plugin into the existing lint configuration, enables every generic rule, and validates the result. In repositories that depend directly on Effect, it also enables the opt-in Effect rule group.
-
-To inspect available skills first:
+Install the plugin as a development dependency:
 
 ```bash
-npx skills add dmmulroy/anti-slop --list
+pnpm add -D oxlint-plugin-anti-slop
 ```
 
-## Manual local installation
-
-Copy `src/` into the target repository, for example at `tools/oxlint/anti-slop/`. If the repository already uses `oxlint`, install `@oxlint/plugins` at exactly the resolved Oxlint version and install `eslint-plugin-sonarjs@4.2.0`. Otherwise, install the same current Oxlint version for both `oxlint` and `@oxlint/plugins`, plus SonarJS 4.2.0. Keep these versions exact so upgrades move them together.
-
-Register the copied entry point in `oxlint.config.ts`:
+Register the package in `oxlint.config.ts` and enable the rules you want:
 
 ```ts
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
-  ignorePatterns: [
-    ".agent/**",
-    ".agents/**",
-    ".claude/**",
-    ".codex/**",
-    ".continue/**",
-    ".cursor/**",
-    ".gemini/**",
-    ".opencode/**",
-    ".pi/**",
-    ".roo/**",
-    ".windsurf/**",
-    "tools/oxlint/anti-slop/**",
-  ],
   jsPlugins: [
-    { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+    { name: "anti-slop", specifier: "oxlint-plugin-anti-slop" },
   ],
   rules: {
     "anti-slop/cognitive-complexity": ["error", 12],
@@ -73,7 +45,7 @@ export default defineConfig({
 });
 ```
 
-The same `ignorePatterns`, `jsPlugins`, and rules work under `lint` in a Vite+ config. Merge the ignore patterns into Vite+'s `fmt.ignorePatterns` as well so `vp check` does not reformat installed agent assets or the vendored plugin. Preserve existing ignores and add any other project-local agent tooling directories detected in the repository; do not broadly ignore every dot-directory.
+The same `jsPlugins` and rules work under `lint` in a Vite+ config.
 
 ### Optional Effect rules
 
@@ -82,10 +54,10 @@ Effect-specific rules live in a separate plugin so projects that do not use Effe
 ```ts
 export default defineConfig({
   jsPlugins: [
-    { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+    { name: "anti-slop", specifier: "oxlint-plugin-anti-slop" },
     {
       name: "anti-slop-effect",
-      specifier: "./tools/oxlint/anti-slop/effect/index.ts"
+      specifier: "oxlint-plugin-anti-slop/effect"
     }
   ],
   rules: {
@@ -302,7 +274,7 @@ pnpm install
 pnpm check
 ```
 
-`src/` is canonical. After changing production source, run `pnpm sync:skill-assets`; CI checks that the skill's bundled copy remains identical. `pnpm check` runs Oxlint, every RuleTester suite, TypeScript typechecking, and the skill-asset drift check.
+`src/` is canonical. `pnpm check` runs Oxlint, every RuleTester suite, TypeScript typechecking, and the package build.
 
 ## License
 
