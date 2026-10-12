@@ -1,5 +1,6 @@
 import { eslintCompatPlugin } from "@oxlint/plugins";
 
+import { accessorFieldConsistencyRule } from "./rules/accessor-field-consistency.ts";
 import { noChainedTypeAssertionsRule } from "./rules/no-chained-type-assertions.ts";
 import { noConditionalEmptyObjectSpreadRule } from "./rules/no-conditional-empty-object-spread.ts";
 import { noKnownValueWideningRule } from "./rules/no-known-value-widening.ts";
@@ -26,6 +27,7 @@ import {
 const antiSlopPlugin = eslintCompatPlugin({
 	meta: { name: "anti-slop" },
 	rules: {
+		"accessor-field-consistency": accessorFieldConsistencyRule,
 		"cognitive-complexity": cognitiveComplexityRule,
 		"cyclomatic-complexity": cyclomaticComplexityRule,
 		"max-lines": maxLinesRule,
