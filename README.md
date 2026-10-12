@@ -274,7 +274,39 @@ pnpm install
 pnpm check
 ```
 
-`src/` is canonical. `pnpm check` runs Oxlint, every RuleTester suite, TypeScript typechecking, and the package build.
+`src/` is canonical. `pnpm check` runs the generic secret scan, Oxlint, every RuleTester suite, TypeScript typechecking, and the package build.
+
+### Secret scanning
+
+Development and CI use **Gitleaks 8.30.1**, an external **MIT** executable. It is not included in the published npm package or exported as bespoke anti-slop rules. No npm, Python, Go or global tool dependency is added. Upstream explicitly declares Gitleaks feature-complete with future security patches only; provider-format additions are not promised.
+
+Acquire the official binary in Git-ignored `.tools/`, verify SHA256, and extract only `gitleaks`. Linux ARM64:
+
+```bash
+mkdir -p .tools
+curl --fail --location --silent --show-error https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz --output .tools/gitleaks.tar.gz
+printf '%s  %s\n' 'e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080' '.tools/gitleaks.tar.gz' | sha256sum --check --status
+tar -xzf .tools/gitleaks.tar.gz -C .tools gitleaks
+rm .tools/gitleaks.tar.gz
+.tools/gitleaks version
+```
+
+The [official release](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1) and [checksums](https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt) provide other platforms. Linux AMD64 (CI), archive suffix `linux_x64.tar.gz`, SHA256 is `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb`; macOS ARM64 is `b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5`; macOS AMD64, suffix `darwin_x64.tar.gz`, is `dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709`. Use `shasum -a 256 -c` on macOS. The canonical script rejects a missing binary or different version.
+
+```bash
+pnpm quality:secrets
+scripts/check-secrets.sh --staged
+```
+
+`pnpm quality:secrets` delegates to canonical `scripts/check-secrets.sh`. Default mode runs native `gitleaks dir .` over the current working directory, **including ordinary untracked and Git-ignored files such as private `.env` files**. CI uses its clean checkout. Staged mode runs native `gitleaks git --staged .` on the actual index, not the working copy. Native directory mode does not follow links; the default command also streams only tracked links' target text to native `gitleaks stdin`, without reading external targets or creating snapshots.
+
+All invocations use `--redact=100 --no-banner --no-color --exit-code=183`; findings exit 183, other nonzero statuses are operational failures and remain failing. Directory, stdin and Git detection are offline without credential-validation requests. Native summaries remain visible. Do not add `--verbose` or report output: auxiliary finding output is not proved fully redacted. No sanitizer, custom detector, baseline, `.gitleaksignore` or repository exclusion list is added.
+
+Tracked `.env`, fixtures, tests and reports are not blanket-ignored. The [pinned built-in configuration](https://github.com/gitleaks/gitleaks/blob/v8.30.1/config/gitleaks.toml) does exclude standard dependency/vendor directories, `.git`, lockfiles, image/font/binary/document extensions, wrapper files and `gitleaks.toml` paths. Recognized application binaries are skipped; archive traversal/recursive decoding are not enabled by default. This does not promise every tracked byte or exact Sonar secret-rule parity. Generic assignment matching requires eligible length/context/entropy and can miss short or low-entropy passwords. Dedicated provider gaps include Azure Storage/subscription, database URIs, Discord webhooks, Docker Hub/swarm, Infura, Splunk and scoped Sonar organization tokens.
+
+The tracked `.githooks/pre-commit` calls the canonical staged command. The existing sbx global dispatcher chains it before package gates. Outside sbx, have the existing hook manager invoke it; only when no hook manager exists, opt in with `git config --local core.hooksPath .githooks`. Never overwrite an existing hook path or global configuration.
+
+Remove and rotate actual credentials. Review explicitly dummy findings before replacing them with obvious placeholders or approving narrow exceptions; never blanket-ignore environment files, fixtures or reports to obtain a passing scan.
 
 ## License
 
