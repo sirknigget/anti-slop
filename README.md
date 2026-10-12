@@ -66,6 +66,31 @@ export default defineConfig({
 });
 ```
 
+### Optional CSS rules
+
+CSS rules use a separate Stylelint entry. Install Stylelint 17 or later alongside anti-slop and register only the rules you need in `.stylelintrc.json`:
+
+```json
+{
+  "plugins": ["oxlint-plugin-anti-slop/stylelint"],
+  "rules": {
+    "anti-slop/no-commented-css": true,
+    "anti-slop/no-orientation-lock": true,
+    "anti-slop/no-small-important-text-spacing": true
+  }
+}
+```
+
+- `no-commented-css` detects CSS rules, at-rules and semicolon-terminated declarations in comments after successful native PostCSS parsing. Ordinary prose, URLs and malformed fragments pass. A complete CSS example in a comment is indistinguishable from disabled code; keep examples in documentation instead.
+- `no-orientation-lock` detects rotations within 30 degrees of a quarter turn, modulo 180 degrees, inside orientation media queries. It covers `rotate`/`rotateZ`, Z-axis `rotate3d`, `matrix`/`matrix3d` and the individual `rotate` property. Function values in custom properties and other declarations are also checked, so reusable rotation values cannot bypass the gate. Rotation outside orientation media queries, other-axis rotation, translation and full turns pass. This is a static orientation-lock indicator, not a computed-cascade or rendered-page accessibility proof.
+- `no-small-important-text-spacing` detects important `word-spacing`, `letter-spacing` and `line-height` below 0.16, 0.12 and 1.5 font-relative units respectively. Values at or above the thresholds, non-important declarations and unrelated properties pass. It preserves the static font-unit approximations: `%` divided by 100, `ex`/`ch` and root variants divided by 2, `cap` and `rcap` multiplied by 0.7, and `em`/`ic` plus root variants treated as em-equivalent. It checks numeric tokens inside functions too. Fixed units, unitless values, keywords and unresolved variables need computed font/DOM information and are not inferred.
+
+The CSS entry consumes the AST supplied by Stylelint; it does not parse whole files again. Comment bodies use PostCSS, the same framework parser. No CSS tooling is loaded by the Oxlint root or Effect entries, and Stylelint is an optional peer dependency. The plugin does not introduce blanket bans on comments, rotations or `!important`.
+
+Stylelint's normal CSS invocation checks stylesheets, not HTML attributes or JSX. A framework-native custom syntax can supply embedded CSS when the consuming project actually uses it; this package does not add a second HTML/JavaScript parser. React's supported `style` prop takes an object, not an HTML-style string, and does not support `!important` values.
+
+Run `pnpm test:css` for CSS semantic tests; `pnpm check` includes them.
+
 ## Rules
 
 ### Generic rules
