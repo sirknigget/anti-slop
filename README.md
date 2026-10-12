@@ -66,6 +66,36 @@ export default defineConfig({
 });
 ```
 
+### Optional React prop rules
+
+The React entry point uses original rules on Oxlint's native ESTree and scope APIs. It does not replace native React checks, add a parser, or require an ESLint runner:
+
+```ts
+export default defineConfig({
+  jsPlugins: [
+    { name: "anti-slop-react", specifier: "oxlint-plugin-anti-slop/react" }
+  ],
+  rules: {
+    "anti-slop-react/no-unused-prop-types": "error",
+    "anti-slop-react/default-props-match-prop-types": [
+      "error",
+      { allowRequiredDefaults: false }
+    ]
+  }
+});
+```
+
+- `no-unused-prop-types` rejects unconsumed top-level static or runtime typed props per component. It follows direct reads, destructuring and rest exclusions, local value aliases, helper/JSX forwarding, and typed factory callback consumers. Shared types do not share usage across unrelated components. React constructor initialization and static receiver reads do not hide unused instance props.
+- `default-props-match-prop-types` rejects unknown `defaultProps` keys and defaults for required TypeScript or runtime PropTypes declarations. When both declarations exist, each must permit the default independently. JavaScript parameter defaults are not legacy `defaultProps`; `allowRequiredDefaults` defaults to `false`.
+
+The rules recognize React import aliases, functions, classes and local React subclasses, `memo`, `forwardRef`, and `FC`/`FunctionComponent` annotations. Local types include transparent generic aliases, interfaces and extensions, unions/intersections, finite `keyof` sets, and finite `Readonly`, `Partial`, `Required`, `Pick`, `Omit`, `Record`, and `PropsWithChildren` forms. Local constant metadata and resolved object spreads are analyzed. Known default keys remain checked beside unresolved spreads; potentially overwritten validator values remain unknown rather than being treated as optional or required.
+
+Component roles use conventional component bindings, explicit React wrappers/types, default exports, runtime metadata, or local JSX binding usage. Ordinary classes, array-map callback records, and lower-case local JSX helpers are not treated as React props. Local inheritance excludes overridden parent consumers unless a `super` read restores them. Typed factory consumers match the target's local prop declaration identities; arbitrary structural assignability is not inferred.
+
+Oxlint JS plugins do not receive a TypeScript checker. Imported types, arbitrary mapped/conditional types, inferred decorator types, and unresolved metadata are not full-program coverage. Unknown inherited or spread declarations do not establish that a default key is absent. PropTypes checks inspect the runtime declaration contract; they do not claim to perform React runtime validation. React 19 no longer checks runtime PropTypes or function `defaultProps`, but existing declarations still need to be internally consistent.
+
+`eslint-plugin-react@7.37.5` was considered but rejected: its declared ESLint peer range stops at 9, and actual package resolution selected incompatible ESLint 10. The original rules add no dependency, force no peers, and do not install an out-of-support ESLint runner. Native RuleTester cases cover the contracts; application smoke must also exercise the compiled plugin through the actual Oxlint CLI.
+
 ## Rules
 
 ### Generic rules
