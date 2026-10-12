@@ -22,6 +22,7 @@ export default defineConfig({
     { name: "anti-slop", specifier: "oxlint-plugin-anti-slop" },
   ],
   rules: {
+    "anti-slop/accessor-field-consistency": "error",
     "anti-slop/cognitive-complexity": ["error", 12],
     "anti-slop/cyclomatic-complexity": ["error", { threshold: 8 }],
     "anti-slop/max-lines": ["error", { maximum: 500 }],
@@ -65,6 +66,61 @@ export default defineConfig({
   }
 });
 ```
+
+### Optional React prop rules
+
+The React entry point uses original rules on Oxlint's native ESTree and scope APIs. It does not replace native React checks, add a parser, or require an ESLint runner:
+
+```ts
+export default defineConfig({
+  jsPlugins: [
+    { name: "anti-slop-react", specifier: "oxlint-plugin-anti-slop/react" }
+  ],
+  rules: {
+    "anti-slop-react/no-unused-prop-types": "error",
+    "anti-slop-react/default-props-match-prop-types": [
+      "error",
+      { allowRequiredDefaults: false }
+    ]
+  }
+});
+```
+
+- `no-unused-prop-types` rejects unconsumed top-level static or runtime typed props per component. It follows direct reads, destructuring and rest exclusions, local value aliases, helper/JSX forwarding, and typed factory callback consumers. Shared types do not share usage across unrelated components. React constructor initialization and static receiver reads do not hide unused instance props.
+- `default-props-match-prop-types` rejects unknown `defaultProps` keys and defaults for required TypeScript or runtime PropTypes declarations. When both declarations exist, each must permit the default independently. JavaScript parameter defaults are not legacy `defaultProps`; `allowRequiredDefaults` defaults to `false`.
+
+The rules recognize React import aliases, functions, classes and local React subclasses, `memo`, `forwardRef`, and `FC`/`FunctionComponent` annotations. Local types include transparent generic aliases, interfaces and extensions, unions/intersections, finite `keyof` sets, and finite `Readonly`, `Partial`, `Required`, `Pick`, `Omit`, `Record`, and `PropsWithChildren` forms. Local constant metadata and resolved object spreads are analyzed. Known default keys remain checked beside unresolved spreads; potentially overwritten validator values remain unknown rather than being treated as optional or required.
+
+Component roles use conventional component bindings, explicit React wrappers/types, default exports, runtime metadata, or local JSX binding usage. Ordinary classes, array-map callback records, and lower-case local JSX helpers are not treated as React props. Local inheritance excludes overridden parent consumers unless a `super` read restores them. Typed factory consumers match the target's local prop declaration identities; arbitrary structural assignability is not inferred.
+
+Oxlint JS plugins do not receive a TypeScript checker. Imported types, arbitrary mapped/conditional types, inferred decorator types, and unresolved metadata are not full-program coverage. Unknown inherited or spread declarations do not establish that a default key is absent. PropTypes checks inspect the runtime declaration contract; they do not claim to perform React runtime validation. React 19 no longer checks runtime PropTypes or function `defaultProps`, but existing declarations still need to be internally consistent.
+
+`eslint-plugin-react@7.37.5` was considered but rejected: its declared ESLint peer range stops at 9, and actual package resolution selected incompatible ESLint 10. The original rules add no dependency, force no peers, and do not install an out-of-support ESLint runner. Native RuleTester cases cover the contracts; application smoke must also exercise the compiled plugin through the actual Oxlint CLI.
+
+### Optional CSS rules
+
+CSS rules use a separate Stylelint entry. Install Stylelint 17 or later alongside anti-slop and register only the rules you need in `.stylelintrc.json`:
+
+```json
+{
+  "plugins": ["oxlint-plugin-anti-slop/stylelint"],
+  "rules": {
+    "anti-slop/no-commented-css": true,
+    "anti-slop/no-orientation-lock": true,
+    "anti-slop/no-small-important-text-spacing": true
+  }
+}
+```
+
+- `no-commented-css` detects CSS rules, at-rules and semicolon-terminated declarations in comments after successful native PostCSS parsing. Ordinary prose, URLs and malformed fragments pass. A complete CSS example in a comment is indistinguishable from disabled code; keep examples in documentation instead.
+- `no-orientation-lock` detects rotations within 30 degrees of a quarter turn, modulo 180 degrees, inside orientation media queries. It covers `rotate`/`rotateZ`, Z-axis `rotate3d`, `matrix`/`matrix3d` and the individual `rotate` property. Function values in custom properties and other declarations are also checked, so reusable rotation values cannot bypass the gate. Rotation outside orientation media queries, other-axis rotation, translation and full turns pass. This is a static orientation-lock indicator, not a computed-cascade or rendered-page accessibility proof.
+- `no-small-important-text-spacing` detects important `word-spacing`, `letter-spacing` and `line-height` below 0.16, 0.12 and 1.5 font-relative units respectively. Values at or above the thresholds, non-important declarations and unrelated properties pass. It preserves the static font-unit approximations: `%` divided by 100, `ex`/`ch` and root variants divided by 2, `cap` and `rcap` multiplied by 0.7, and `em`/`ic` plus root variants treated as em-equivalent. It checks numeric tokens inside functions too. Fixed units, unitless values, keywords and unresolved variables need computed font/DOM information and are not inferred.
+
+The CSS entry consumes the AST supplied by Stylelint; it does not parse whole files again. Comment bodies use PostCSS, the same framework parser. No CSS tooling is loaded by the Oxlint root or Effect entries, and Stylelint is an optional peer dependency. The plugin does not introduce blanket bans on comments, rotations or `!important`.
+
+Stylelint's normal CSS invocation checks stylesheets, not HTML attributes or JSX. A framework-native custom syntax can supply embedded CSS when the consuming project actually uses it; this package does not add a second HTML/JavaScript parser. React's supported `style` prop takes an object, not an HTML-style string, and does not support `!important` values.
+
+Run `pnpm test:css` for CSS semantic tests; `pnpm check` includes them.
 
 ## Generic Unicode text checks
 
@@ -117,6 +173,7 @@ reject legitimate emoji and balanced controls.
 
 ### Generic rules
 
+- `accessor-field-consistency` — detects simple class getters/setters (including `getX`/`setX` methods) reading/writing the wrong locally established backing field. Field declarations, TypeScript parameter properties (including defaults), and direct `this.field = ...` constructor statements establish storage. Exact `value`, `_value`, `#value`, and `#_value` conventions are supported when only one candidate exists; static and instance fields are separate. Named methods lower-case only their first suffix letter (`getValue` → `value`). Computed/delegating or multi-statement accessor bodies, conditional/nested constructor initialization, unresolved inherited fields, and ambiguous conventions are deliberately not inferred. A direct alias with no matching backing field passes; a getter/setter pair both using the wrong field still fails. This is a conservative original replacement for the backing-field part of [Sonar S4275](https://rules.sonarsource.com/typescript/RSPEC-4275/), not complete equivalence: `Object.defineProperty` is outside its scope and missing returns belong to native `getter-return`.
 - `cognitive-complexity` — exposes the official SonarJS cognitive-complexity rule. Suite callbacks and their nested functions are measured independently.
 - `cyclomatic-complexity` — exposes the official SonarJS cyclomatic-complexity rule. Suite callbacks and their nested functions are measured independently.
 - `max-lines` — exposes the official SonarJS file-length rule without callback filtering.
