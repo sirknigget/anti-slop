@@ -22,6 +22,7 @@ export default defineConfig({
     { name: "anti-slop", specifier: "oxlint-plugin-anti-slop" },
   ],
   rules: {
+    "anti-slop/accessor-field-consistency": "error",
     "anti-slop/cognitive-complexity": ["error", 12],
     "anti-slop/cyclomatic-complexity": ["error", { threshold: 8 }],
     "anti-slop/max-lines": ["error", { maximum: 500 }],
@@ -70,6 +71,7 @@ export default defineConfig({
 
 ### Generic rules
 
+- `accessor-field-consistency` — detects simple class getters/setters (including `getX`/`setX` methods) reading/writing the wrong locally established backing field. Field declarations, TypeScript parameter properties (including defaults), and direct `this.field = ...` constructor statements establish storage. Exact `value`, `_value`, `#value`, and `#_value` conventions are supported when only one candidate exists; static and instance fields are separate. Named methods lower-case only their first suffix letter (`getValue` → `value`). Computed/delegating or multi-statement accessor bodies, conditional/nested constructor initialization, unresolved inherited fields, and ambiguous conventions are deliberately not inferred. A direct alias with no matching backing field passes; a getter/setter pair both using the wrong field still fails. This is a conservative original replacement for the backing-field part of [Sonar S4275](https://rules.sonarsource.com/typescript/RSPEC-4275/), not complete equivalence: `Object.defineProperty` is outside its scope and missing returns belong to native `getter-return`.
 - `cognitive-complexity` — exposes the official SonarJS cognitive-complexity rule. Suite callbacks and their nested functions are measured independently.
 - `cyclomatic-complexity` — exposes the official SonarJS cyclomatic-complexity rule. Suite callbacks and their nested functions are measured independently.
 - `max-lines` — exposes the official SonarJS file-length rule without callback filtering.
