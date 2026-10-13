@@ -122,6 +122,53 @@ Stylelint's normal CSS invocation checks stylesheets, not HTML attributes or JSX
 
 Run `pnpm test:css` for CSS semantic tests; `pnpm check` includes them.
 
+## Generic Unicode text checks
+
+The separate `anti-slop-text` executable checks literal UTF-8 text of any format,
+including Markdown, CSS, HTML, Python, shell, configuration and malformed source.
+It uses Node built-ins, not an AST parser. It does not decode source-language escape
+spellings, XML entities or percent escapes.
+
+```bash
+pnpm exec anti-slop-text -- "README.md" "src/file with spaces.ts"
+pnpm exec anti-slop-text --git-root .
+pnpm exec anti-slop-text --git-root . --staged --json
+```
+
+Explicit files must be regular UTF-8 text. Git mode checks tracked and nonignored
+untracked working-tree files; staged mode checks the exact index blobs for
+added/copied/modified/renamed paths, even when the working copy differs or is absent.
+Git roots normalize to the repository top level. Both Git modes skip binary,
+invalid-UTF-8, symlink and deleted-index entries. There are no extension exclusions.
+Exit codes are
+`0` for no findings, `1` for findings and `2` for input or tool errors.
+
+| Check | Behavior |
+| --- | --- |
+| `unbalanced-bidi` | Reports unclosed U+202A/B/D/E formatting or U+2066/7/8 isolate controls per line. The two stacks are independent. Balanced pairs and standalone closing controls pass. Only localized Android `res/values-[a-zA-Z-]+/strings.xml` paths are exempt. |
+| `hidden-unicode-tags` | Reports nonblank runs of at least two U+E0020–U+E007F tags outside black-flag context. A U+1F3F4 black flag skips following tags through the first cancel tag, non-tag or line end, without country-code validation. Hidden runs after the cancel tag are checked again. |
+| `consecutive-variation-selectors` | Reports runs of at least two U+FE00–U+FE0F or U+E0100–U+E01EF selectors. Single selectors and ordinary emoji remain valid. |
+
+These are original specification-based checks associated with Sonar Text S6389,
+S7628 and S8522, not copied Sonar implementations. The published S8522 description
+says two selectors; captured Sonar Text 2.47.0.11983 uses four. This checker follows
+the published two-selector contract. It does not claim analyzer-version parity.
+Locations use one-based lines and UTF-16 columns, which can differ from Sonar's
+sequence column counting. No automatic removal or broad Unicode scalar ban is used.
+
+Applications can use the parser-free API independently:
+
+```ts
+import { scanText } from "oxlint-plugin-anti-slop/text";
+
+const findings = scanText(content, filename);
+```
+
+Prefer installed native Oxlint checks, then compatible existing plugins, over
+duplicating standard language rules here. Generic text scanning belongs outside
+AST rules; a scanner that bans every selector, tag or bidi character would also
+reject legitimate emoji and balanced controls.
+
 ## Rules
 
 ### Generic rules
@@ -331,7 +378,7 @@ pnpm install
 pnpm check
 ```
 
-`src/` is canonical. `pnpm check` runs Oxlint, every RuleTester suite, TypeScript typechecking, and the package build.
+`src/` is canonical. `pnpm check` runs Oxlint, every RuleTester suite, focused text/API and public CLI tests, TypeScript typechecking, and the package build.
 
 ## License
 
