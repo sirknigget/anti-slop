@@ -11,7 +11,22 @@
     "./effect": {
       "types": "./dist/effect/index.d.ts",
       "default": "./dist/effect/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
+    "./stylelint": {
+      "types": "./dist/stylelint/index.d.ts",
+      "default": "./dist/stylelint/index.js"
+    },
+    "./text": {
+      "types": "./dist/text/scan.d.ts",
+      "default": "./dist/text/scan.js"
     }
+  },
+  "bin": {
+    "anti-slop-text": "./dist/text/cli.js"
   },
   "files": [
     "dist"
@@ -20,20 +35,31 @@
     "build": "tsc -p tsconfig.build.json",
     "prepare": "pnpm build",
     "check": "pnpm lint && pnpm test && pnpm typecheck && pnpm build",
-    "lint": "oxlint src",
+    "lint": "oxlint src && pnpm quality:text",
+    "quality:text": "tsx src/text/cli.ts --git-root .",
     "pretest": "pnpm build",
-    "test": "tsx src/rules/accessor-field-consistency.test.ts && tsx src/rules/no-chained-type-assertions.test.ts && tsx src/rules/no-conditional-empty-object-spread.test.ts && tsx src/rules/no-unsafe-dictionary-type.test.ts && tsx src/rules/no-known-value-widening.test.ts && tsx src/rules/no-object-parameters.test.ts && tsx src/rules/no-unknown-parameters.test.ts && tsx src/rules/no-runtime-typeof.test.ts && tsx src/rules/no-shape-in-symbol-names.test.ts && tsx src/rules/no-unknown-returns.test.ts && tsx src/rules/no-unknown-type-aliases.test.ts && tsx src/rules/no-widen-then-assert.test.ts && tsx src/rules/no-reflect-get.test.ts && tsx src/rules/no-reflect-apply.test.ts && tsx src/rules/no-module-mocking.test.ts && tsx src/rules/require-safety-comment-for-type-assertion.test.ts && tsx src/rules/sonarjs-quality.test.ts && tsx src/effect/rules/no-service-constructor-imports.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "tsx src/rules/accessor-field-consistency.test.ts && tsx src/rules/no-chained-type-assertions.test.ts && tsx src/rules/no-conditional-empty-object-spread.test.ts && tsx src/rules/no-unsafe-dictionary-type.test.ts && tsx src/rules/no-known-value-widening.test.ts && tsx src/rules/no-object-parameters.test.ts && tsx src/rules/no-unknown-parameters.test.ts && tsx src/rules/no-runtime-typeof.test.ts && tsx src/rules/no-shape-in-symbol-names.test.ts && tsx src/rules/no-unknown-returns.test.ts && tsx src/rules/no-unknown-type-aliases.test.ts && tsx src/rules/no-widen-then-assert.test.ts && tsx src/rules/no-reflect-get.test.ts && tsx src/rules/no-reflect-apply.test.ts && tsx src/rules/no-module-mocking.test.ts && tsx src/rules/require-safety-comment-for-type-assertion.test.ts && tsx src/rules/sonarjs-quality.test.ts && tsx src/effect/rules/no-service-constructor-imports.test.ts && pnpm test:css && tsx src/react/props.test.ts && tsx src/text/scan.test.ts && tsx src/text/cli.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test:css": "tsx src/stylelint/index.test.ts"
   },
   "dependencies": {
     "@oxlint/plugins": "1.73.0",
-    "eslint-plugin-sonarjs": "4.2.0"
+    "eslint-plugin-sonarjs": "4.2.0",
+    "postcss": "8.5.26",
+    "postcss-value-parser": "4.2.0"
   },
   "devDependencies": {
     "@types/node": "26.2.0",
     "oxlint": "1.73.0",
     "tsx": "4.23.12",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "stylelint": "17.16.0"
+  },
+  "peerDependencies": {
+    "stylelint": ">=17.0.0"
+  },
+  "peerDependenciesMeta": {
+    "stylelint": { "optional": true }
   },
   "packageManager": "pnpm@10.33.0",
   "license": "MIT"

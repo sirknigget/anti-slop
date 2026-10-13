@@ -67,6 +67,108 @@ export default defineConfig({
 });
 ```
 
+### Optional React prop rules
+
+The React entry point uses original rules on Oxlint's native ESTree and scope APIs. It does not replace native React checks, add a parser, or require an ESLint runner:
+
+```ts
+export default defineConfig({
+  jsPlugins: [
+    { name: "anti-slop-react", specifier: "oxlint-plugin-anti-slop/react" }
+  ],
+  rules: {
+    "anti-slop-react/no-unused-prop-types": "error",
+    "anti-slop-react/default-props-match-prop-types": [
+      "error",
+      { allowRequiredDefaults: false }
+    ]
+  }
+});
+```
+
+- `no-unused-prop-types` rejects unconsumed top-level static or runtime typed props per component. It follows direct reads, destructuring and rest exclusions, local value aliases, helper/JSX forwarding, and typed factory callback consumers. Shared types do not share usage across unrelated components. React constructor initialization and static receiver reads do not hide unused instance props.
+- `default-props-match-prop-types` rejects unknown `defaultProps` keys and defaults for required TypeScript or runtime PropTypes declarations. When both declarations exist, each must permit the default independently. JavaScript parameter defaults are not legacy `defaultProps`; `allowRequiredDefaults` defaults to `false`.
+
+The rules recognize React import aliases, functions, classes and local React subclasses, `memo`, `forwardRef`, and `FC`/`FunctionComponent` annotations. Local types include transparent generic aliases, interfaces and extensions, unions/intersections, finite `keyof` sets, and finite `Readonly`, `Partial`, `Required`, `Pick`, `Omit`, `Record`, and `PropsWithChildren` forms. Local constant metadata and resolved object spreads are analyzed. Known default keys remain checked beside unresolved spreads; potentially overwritten validator values remain unknown rather than being treated as optional or required.
+
+Component roles use conventional component bindings, explicit React wrappers/types, default exports, runtime metadata, or local JSX binding usage. Ordinary classes, array-map callback records, and lower-case local JSX helpers are not treated as React props. Local inheritance excludes overridden parent consumers unless a `super` read restores them. Typed factory consumers match the target's local prop declaration identities; arbitrary structural assignability is not inferred.
+
+Oxlint JS plugins do not receive a TypeScript checker. Imported types, arbitrary mapped/conditional types, inferred decorator types, and unresolved metadata are not full-program coverage. Unknown inherited or spread declarations do not establish that a default key is absent. PropTypes checks inspect the runtime declaration contract; they do not claim to perform React runtime validation. React 19 no longer checks runtime PropTypes or function `defaultProps`, but existing declarations still need to be internally consistent.
+
+`eslint-plugin-react@7.37.5` was considered but rejected: its declared ESLint peer range stops at 9, and actual package resolution selected incompatible ESLint 10. The original rules add no dependency, force no peers, and do not install an out-of-support ESLint runner. Native RuleTester cases cover the contracts; application smoke must also exercise the compiled plugin through the actual Oxlint CLI.
+
+### Optional CSS rules
+
+CSS rules use a separate Stylelint entry. Install Stylelint 17 or later alongside anti-slop and register only the rules you need in `.stylelintrc.json`:
+
+```json
+{
+  "plugins": ["oxlint-plugin-anti-slop/stylelint"],
+  "rules": {
+    "anti-slop/no-commented-css": true,
+    "anti-slop/no-orientation-lock": true,
+    "anti-slop/no-small-important-text-spacing": true
+  }
+}
+```
+
+- `no-commented-css` detects CSS rules, at-rules and semicolon-terminated declarations in comments after successful native PostCSS parsing. Ordinary prose, URLs and malformed fragments pass. A complete CSS example in a comment is indistinguishable from disabled code; keep examples in documentation instead.
+- `no-orientation-lock` detects rotations within 30 degrees of a quarter turn, modulo 180 degrees, inside orientation media queries. It covers `rotate`/`rotateZ`, Z-axis `rotate3d`, `matrix`/`matrix3d` and the individual `rotate` property. Function values in custom properties and other declarations are also checked, so reusable rotation values cannot bypass the gate. Rotation outside orientation media queries, other-axis rotation, translation and full turns pass. This is a static orientation-lock indicator, not a computed-cascade or rendered-page accessibility proof.
+- `no-small-important-text-spacing` detects important `word-spacing`, `letter-spacing` and `line-height` below 0.16, 0.12 and 1.5 font-relative units respectively. Values at or above the thresholds, non-important declarations and unrelated properties pass. It preserves the static font-unit approximations: `%` divided by 100, `ex`/`ch` and root variants divided by 2, `cap` and `rcap` multiplied by 0.7, and `em`/`ic` plus root variants treated as em-equivalent. It checks numeric tokens inside functions too. Fixed units, unitless values, keywords and unresolved variables need computed font/DOM information and are not inferred.
+
+The CSS entry consumes the AST supplied by Stylelint; it does not parse whole files again. Comment bodies use PostCSS, the same framework parser. No CSS tooling is loaded by the Oxlint root or Effect entries, and Stylelint is an optional peer dependency. The plugin does not introduce blanket bans on comments, rotations or `!important`.
+
+Stylelint's normal CSS invocation checks stylesheets, not HTML attributes or JSX. A framework-native custom syntax can supply embedded CSS when the consuming project actually uses it; this package does not add a second HTML/JavaScript parser. React's supported `style` prop takes an object, not an HTML-style string, and does not support `!important` values.
+
+Run `pnpm test:css` for CSS semantic tests; `pnpm check` includes them.
+
+## Generic Unicode text checks
+
+The separate `anti-slop-text` executable checks literal UTF-8 text of any format,
+including Markdown, CSS, HTML, Python, shell, configuration and malformed source.
+It uses Node built-ins, not an AST parser. It does not decode source-language escape
+spellings, XML entities or percent escapes.
+
+```bash
+pnpm exec anti-slop-text -- "README.md" "src/file with spaces.ts"
+pnpm exec anti-slop-text --git-root .
+pnpm exec anti-slop-text --git-root . --staged --json
+```
+
+Explicit files must be regular UTF-8 text. Git mode checks tracked and nonignored
+untracked working-tree files; staged mode checks the exact index blobs for
+added/copied/modified/renamed paths, even when the working copy differs or is absent.
+Git roots normalize to the repository top level. Both Git modes skip binary,
+invalid-UTF-8, symlink and deleted-index entries. There are no extension exclusions.
+Exit codes are
+`0` for no findings, `1` for findings and `2` for input or tool errors.
+
+| Check | Behavior |
+| --- | --- |
+| `unbalanced-bidi` | Reports unclosed U+202A/B/D/E formatting or U+2066/7/8 isolate controls per line. The two stacks are independent. Balanced pairs and standalone closing controls pass. Only localized Android `res/values-[a-zA-Z-]+/strings.xml` paths are exempt. |
+| `hidden-unicode-tags` | Reports nonblank runs of at least two U+E0020–U+E007F tags outside black-flag context. A U+1F3F4 black flag skips following tags through the first cancel tag, non-tag or line end, without country-code validation. Hidden runs after the cancel tag are checked again. |
+| `consecutive-variation-selectors` | Reports runs of at least two U+FE00–U+FE0F or U+E0100–U+E01EF selectors. Single selectors and ordinary emoji remain valid. |
+
+These are original specification-based checks associated with Sonar Text S6389,
+S7628 and S8522, not copied Sonar implementations. The published S8522 description
+says two selectors; captured Sonar Text 2.47.0.11983 uses four. This checker follows
+the published two-selector contract. It does not claim analyzer-version parity.
+Locations use one-based lines and UTF-16 columns, which can differ from Sonar's
+sequence column counting. No automatic removal or broad Unicode scalar ban is used.
+
+Applications can use the parser-free API independently:
+
+```ts
+import { scanText } from "oxlint-plugin-anti-slop/text";
+
+const findings = scanText(content, filename);
+```
+
+Prefer installed native Oxlint checks, then compatible existing plugins, over
+duplicating standard language rules here. Generic text scanning belongs outside
+AST rules; a scanner that bans every selector, tag or bidi character would also
+reject legitimate emoji and balanced controls.
+
 ## Rules
 
 ### Generic rules
@@ -276,7 +378,7 @@ pnpm install
 pnpm check
 ```
 
-`src/` is canonical. `pnpm check` runs Oxlint, every RuleTester suite, TypeScript typechecking, and the package build.
+`src/` is canonical. `pnpm check` runs Oxlint, every RuleTester suite, focused text/API and public CLI tests, TypeScript typechecking, and the package build.
 
 ## License
 
