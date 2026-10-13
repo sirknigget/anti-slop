@@ -5,9 +5,8 @@ set -euo pipefail
 
 project_root="$(git rev-parse --show-toplevel)"
 cd "${project_root}"
-scanner="${project_root}/.tools/gitleaks"
-if [[ ! -x ${scanner} ]] || [[ $("${scanner}" version 2>&1) != '8.30.1' ]]; then
-  printf 'Install the project-local Gitleaks 8.30.1 binary; see the secret-scanning documentation.\n' >&2
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf 'Gitleaks is required on PATH. On macOS, run brew install gitleaks; see README.md Secret scanning for Linux setup. Verify with gitleaks version.\n' >&2
   exit 2
 fi
 
@@ -17,7 +16,7 @@ status=0
 case "${1:-}" in
   '')
     if [[ $# -ne 0 ]]; then exit 2; fi
-    "${scanner}" dir "${flags[@]}" . || status=$?
+    gitleaks dir "${flags[@]}" . || status=$?
     if [[ ${status} -eq 0 ]]; then
       # Native dir mode does not follow links; Git stores their target text.
       git ls-files -z | (
@@ -26,12 +25,12 @@ case "${1:-}" in
             readlink "./${path}" || exit 1
           fi
         done
-      ) | "${scanner}" stdin "${flags[@]}" || status=$?
+      ) | gitleaks stdin "${flags[@]}" || status=$?
     fi
     ;;
   --staged)
     if [[ $# -ne 1 ]]; then exit 2; fi
-    "${scanner}" git --staged "${flags[@]}" . || status=$?
+    gitleaks git --staged "${flags[@]}" . || status=$?
     ;;
   *)
     printf 'Usage: %s [--staged]\n' "$0" >&2

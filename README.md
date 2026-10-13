@@ -373,6 +373,23 @@ const userId = value as UserId;
 
 ## Development
 
+Install **Gitleaks** as a separate developer prerequisite available as `gitleaks` on `PATH`. On macOS:
+
+```bash
+brew install gitleaks
+gitleaks version
+```
+
+On Linux, optionally install with **Go >= 1.24.11**:
+
+```bash
+go install github.com/zricethezav/gitleaks/v8@v8.30.1
+export PATH="$(go env GOPATH)/bin:$PATH"
+gitleaks version
+```
+
+Keep Go's binary directory on `PATH` (use `GOBIN` instead if configured). `pnpm install` installs project packages, not the Gitleaks CLI. Once the CLI is available:
+
 ```bash
 pnpm install
 pnpm check
@@ -382,20 +399,11 @@ pnpm check
 
 ### Secret scanning
 
-Development and CI use **Gitleaks 8.30.1**, an external **MIT** executable. It is not included in the published npm package or exported as bespoke anti-slop rules. No npm, Python, Go or global tool dependency is added. Upstream explicitly declares Gitleaks feature-complete with future security patches only; provider-format additions are not promised.
+Secret scanning uses **Gitleaks**, an external **MIT** executable found on `PATH`. It is not included in the published npm package or exported as bespoke anti-slop rules; no npm or Go module dependency is added to this project. Local scans do not require an exact version: newer local 8.x releases, including Homebrew upgrades, may produce different findings from CI.
 
-Acquire the official binary in Git-ignored `.tools/`, verify SHA256, and extract only `gitleaks`. Linux ARM64:
+CI downloads the checksum-verified **8.30.1** Linux x64 binary into its ephemeral `.tools/` directory and adds it to `PATH`. The [official release](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1) and [checksums](https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt) document the pinned CI asset. Developers use their installed CLI, not a checkout-local binary. The canonical script fails with installation guidance if `gitleaks` is missing from `PATH`.
 
-```bash
-mkdir -p .tools
-curl --fail --location --silent --show-error https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz --output .tools/gitleaks.tar.gz
-printf '%s  %s\n' 'e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080' '.tools/gitleaks.tar.gz' | sha256sum --check --status
-tar -xzf .tools/gitleaks.tar.gz -C .tools gitleaks
-rm .tools/gitleaks.tar.gz
-.tools/gitleaks version
-```
-
-The [official release](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1) and [checksums](https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt) provide other platforms. Linux AMD64 (CI), archive suffix `linux_x64.tar.gz`, SHA256 is `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb`; macOS ARM64 is `b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5`; macOS AMD64, suffix `darwin_x64.tar.gz`, is `dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709`. Use `shasum -a 256 -c` on macOS. The canonical script rejects a missing binary or different version.
+Upstream explicitly declares Gitleaks feature-complete with future security patches only; provider-format additions are not promised.
 
 ```bash
 pnpm quality:secrets
