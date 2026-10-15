@@ -6,11 +6,23 @@ Anti-slop is first and foremost the ruleset I use with my work, projects, and te
 
 ## Installation
 
-Install the plugin as a development dependency:
+Install the plugin from [GitHub](https://github.com/sirknigget/anti-slop), not the npm registry. Add a version-tagged Git dependency to the consuming project's `package.json`:
+
+```json
+{
+  "devDependencies": {
+    "oxlint-plugin-anti-slop": "github:sirknigget/anti-slop#v0.1.2"
+  }
+}
+```
+
+With pnpm available, install from the consuming project:
 
 ```bash
-pnpm add -D oxlint-plugin-anti-slop
+pnpm install
 ```
+
+The Git dependency's `prepare` script builds the package. If pnpm blocks it, review the tagged source, approve the Git dependency under [`allowBuilds`](https://pnpm.io/10.x/settings#allowbuilds) in the consuming project's `pnpm-workspace.yaml`, and rerun `pnpm install`.
 
 Register the package in `oxlint.config.ts` and enable the rules you want:
 
